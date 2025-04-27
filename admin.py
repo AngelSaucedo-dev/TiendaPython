@@ -1,4 +1,5 @@
 import flet as ft
+from datetime import datetime
 from conexion import *
 
 def admin_interface(page: ft.Page):
@@ -9,7 +10,7 @@ def admin_interface(page: ft.Page):
     
     try:
         global productos
-        cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto")
+        cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto WHERE cantidadProducto > 0")
         resultado = cur.fetchall()
 
         productos = []
@@ -29,6 +30,29 @@ def admin_interface(page: ft.Page):
         print(f"Error al consultar producto: {e}")
 
     carrito = {}
+
+    def actuProd(): 
+        try:
+            global productos
+            cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto WHERE cantidadProducto > 0")
+            resultado = cur.fetchall()
+
+            productos = []
+
+            for row in resultado:
+                producto = {
+                    "id": str(row[0]),
+                    "nombre": row[1],
+                    "precio": float(row[2]),
+                    "cantidad": int(row[3])
+                }
+                productos.append(producto)
+
+            print(productos) 
+
+        except pymysql.MySQLError as e:
+            print(f"Error al consultar producto: {e}")
+
 
     # Barra de navegación (siempre habilitada)
     navigation = ft.NavigationRail(
@@ -131,11 +155,12 @@ def admin_interface(page: ft.Page):
     def actualizar_lista():
         product_list.controls.clear()
         busqueda = search_field.value.strip().lower()
-
+        actuProd()
         global productos
         if not busqueda:
             page.update()
             return  # No mostrar nada si está vacío
+        
         print(productos)
         for p in productos:
             if busqueda == p["id"].lower() or busqueda in p["nombre"].lower():
@@ -179,7 +204,7 @@ def admin_interface(page: ft.Page):
         
         vaciar_carrito_btn.visible = len(carrito) > 0
         proceder_al_pago_btn.visible = len(carrito) > 0
-        
+        print(carrito)
         actualizar_total()
     
     def actualizar_total():
@@ -219,7 +244,10 @@ def admin_interface(page: ft.Page):
     def finalizar_venta():
         page.dialog = pago_dialog
         pago_dialog.open = True
+        #Aqui mandamos la funcion para agregar a ventas
+        procesar_Venta(carrito)
         
+        actualizar_lista()
         carrito.clear()
         pago_section.visible = False
         actualizar_carrito()
@@ -228,6 +256,20 @@ def admin_interface(page: ft.Page):
         cambio_text.value = "Cambio: $0.00"
         
         page.update()
+
+    def procesar_Venta(carrito):
+        fecha_Compra = datetime.now().strftime("%Y-%m-%d")
+        print(fecha_Compra)
+        print("Funcion de venta")
+        for producto, detalles in carrito.items():
+            id_producto = tommaIdBD(producto)
+            cantidad = detalles["cantidad"]
+            altaCompraCarritoBD(id_producto, cantidad, fecha_Compra)
+            print(f"Producto: {producto}, ID: {id_producto}, Cantidad: {cantidad}")
+        
+        search_field.value = ""
+        page.update()       
+    
     
     def ventas_view():
         global vaciar_carrito_btn, proceder_al_pago_btn
@@ -296,7 +338,7 @@ def admin_interface(page: ft.Page):
             global productos
             inventario_table.rows.clear()
             try:
-                cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto")
+                cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto WHERE cantidadProducto > 0")
                 resultado = cur.fetchall()
 
                 productos = []
@@ -440,7 +482,7 @@ def admin_interface(page: ft.Page):
                     "precio": float(precio_input.value),
                     "cantidad": int(existencia_input.value),
                 })
-                altaProducto(nombre,precio,cantidad)
+                altaProductoBD(nombre,precio,cantidad)
 
             modal_nuevo_producto(nombre)
 
@@ -508,7 +550,7 @@ def admin_interface(page: ft.Page):
             id = int(criterio)
             print("Eliminado exitosamente", criterio)
             modal_elimina_producto(criterio)
-            eliminaProducto(id)
+            eliminaProductoBD(id)
             print(productos)
             eliminar_input.value = ""
             formulario_eliminar_container.visible = False

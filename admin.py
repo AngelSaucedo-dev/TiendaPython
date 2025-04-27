@@ -1,4 +1,5 @@
 import flet as ft
+from conexion import *
 
 def admin_interface(page: ft.Page):
     page.title = "Punto de Venta - Cajero"
@@ -6,11 +7,26 @@ def admin_interface(page: ft.Page):
     page.theme_mode = ft.ThemeMode.LIGHT
     page.clean()
     
-    productos = [
-        {"id": "001", "nombre": "Arroz", "precio": 20.0, "cantidad": 10},
-        {"id": "002", "nombre": "Frijoles", "precio": 25.0, "cantidad": 15},
-        {"id": "003", "nombre": "Aceite", "precio": 50.0, "cantidad": 8},
-    ]
+    try:
+        cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto")
+        resultado = cur.fetchall()
+
+        productos = []
+
+        for row in resultado:
+            producto = {
+                "id": str(row[0]).zfill(3),
+                "nombre": row[1],
+                "precio": float(row[2]),
+                "cantidad": int(row[3])
+            }
+            productos.append(producto)
+
+        print(productos) 
+
+    except pymysql.MySQLError as e:
+        print(f"Error al consultar producto: {e}")
+
     carrito = {}
 
     # Barra de navegación (siempre habilitada)
@@ -87,7 +103,7 @@ def admin_interface(page: ft.Page):
         border_radius=10,
     )
     
-    search_field = ft.TextField(label="Buscar producto", prefix_icon=ft.Icons.SEARCH)
+    search_field = ft.TextField(label="Buscar producto", prefix_icon=ft.Icons.SEARCH, max_length=20)
     product_list = ft.ListView(expand=True, spacing=10)
     carrito_list = ft.ListView(expand=True, spacing=10)
     
@@ -275,6 +291,25 @@ def admin_interface(page: ft.Page):
 
         def actualizar_tabla():
             inventario_table.rows.clear()
+            try:
+                cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto")
+                resultado = cur.fetchall()
+
+                productos = []
+
+                for row in resultado:
+                    producto = {
+                        "id": str(row[0]).zfill(3),
+                        "nombre": row[1],
+                        "precio": float(row[2]),
+                        "cantidad": int(row[3])
+                    }
+                    productos.append(producto)
+
+                print(productos) 
+
+            except pymysql.MySQLError as e:
+                print(f"Error al consultar producto: {e}")
             for p in productos:
                 inventario_table.rows.append(
                     ft.DataRow(cells=[
@@ -287,17 +322,17 @@ def admin_interface(page: ft.Page):
             page.update()
 
         # Controles para agregar producto
-        id_input = ft.TextField(label="ID del producto", width=200)
-        nombre_input = ft.TextField(label="Nombre del producto", width=200)
-        precio_input = ft.TextField(label="Precio", width=150, keyboard_type=ft.KeyboardType.NUMBER)
-        existencia_input = ft.TextField(label="En existencia", width=150, keyboard_type=ft.KeyboardType.NUMBER)
+        #id_input = ft.TextField(label="ID del producto", width=200)
+        nombre_input = ft.TextField(label="Nombre del producto", width=200, max_length=20)
+        precio_input = ft.TextField(label="Precio", width=150, keyboard_type=ft.KeyboardType.NUMBER, max_length=6)
+        existencia_input = ft.TextField(label="En existencia", width=150, keyboard_type=ft.KeyboardType.NUMBER, max_length=6)
 
         confirm_btn = ft.ElevatedButton("Confirmar", icon=ft.icons.CHECK_CIRCLE)
 
         formulario_container = ft.Column(
             controls=[
                 ft.Row([
-                    id_input,
+                    #id_input,
                     nombre_input,
                     precio_input,
                     existencia_input,
@@ -317,21 +352,7 @@ def admin_interface(page: ft.Page):
         # Confirmar producto
         def confirmar_agregado(e):
             try:
-                productos.append({
-                    "id": id_input.value,
-                    "nombre": nombre_input.value,
-                    "precio": float(precio_input.value),
-                    "cantidad": int(existencia_input.value),
-                })
-
-                # Limpiar campos
-                id_input.value = ""
-                nombre_input.value = ""
-                precio_input.value = ""
-                existencia_input.value = ""
-
-                formulario_container.visible = False
-                actualizar_tabla()
+                valida_alta_productos(nombre_input.value, precio_input.value, existencia_input.value)
             except Exception as err:
                 print("Error al agregar producto:", err)
 
@@ -339,8 +360,8 @@ def admin_interface(page: ft.Page):
 
         actualizar_tabla()
         
-                # Controles para eliminar producto
-        eliminar_input = ft.TextField(label="ID o Nombre del producto a eliminar", width=300)
+        # Controles para eliminar producto
+        eliminar_input = ft.TextField(label="ID o Nombre del producto a eliminar", width=300, max_length=20)
         eliminar_confirm_btn = ft.ElevatedButton("Eliminar", icon=ft.icons.DELETE_FOREVER)
 
         formulario_eliminar_container = ft.Column(
@@ -353,6 +374,89 @@ def admin_interface(page: ft.Page):
             visible=False
         )
 
+        #Validacion de productos
+        def valida_alta_productos(nombre, precio, cantidad):
+            existe = False
+            valores = {"Nombre":nombre,"Precio":precio,"Cantidad":cantidad}
+            vacio = []
+
+            for valor in valores:
+                print(valores[valor])
+                if valores[valor] == "":
+                    vacio.append(valor)
+                    print(f"El campo {valor} esta vacio")
+            print(vacio)
+            if vacio:
+                campos = ", ".join(vacio)
+                print(campos)
+                modal_productos_vacios(campos)
+                return
+            
+            vacio = []  # Reiniciamos la lista vacíos
+
+            if not validaFloat(precio):
+                vacio.append("Precio")
+            if not validarEnteros(cantidad):
+                vacio.append("Cantidad")
+
+            if vacio:
+                campos = ", ".join(vacio)
+                print(campos)
+                modal_tipo_dato(campos)
+                return
+
+            for p in productos:
+                print(f"Comparando {p['nombre'].lower()} con {nombre.lower()}")
+                if p["nombre"].lower() == nombre.lower():
+                    existe = True
+                    break
+
+            if existe:
+                page.open(dlg_modal_validaNombre)
+                return
+
+            if not existe: 
+                productos.append({
+                    #"id": id_input.value,
+                    "nombre": nombre_input.value,
+                    "precio": float(precio_input.value),
+                    "cantidad": int(existencia_input.value),
+                })
+                altaProducto(nombre,precio,cantidad)
+
+            modal_nuevo_producto(nombre)
+
+            # Limpiar campos
+            #id_input.value = ""
+            nombre_input.value = ""
+            precio_input.value = ""
+            existencia_input.value = ""
+            
+            formulario_container.visible = False
+            actualizar_tabla()
+        
+        # Valida enteros
+        def validarEnteros(enteros):
+            try:
+                numero = int(enteros)
+                if numero > 0 and numero < 9999:
+                    return True
+                else:
+                    return False
+            except:
+                return False
+
+        # Valida flotantes
+        def validaFloat(flotante):
+            try:
+                numero = float(flotante)
+                if numero > 0 and numero < 9999:
+                    return True
+                else:
+                    return False
+            except:
+                return False
+            
         # Mostrar formulario al presionar eliminar
         def mostrar_formulario_eliminar(e):
             formulario_eliminar_container.visible = not formulario_eliminar_container.visible
@@ -362,8 +466,10 @@ def admin_interface(page: ft.Page):
 
         # Eliminar producto por ID o nombre
         def confirmar_eliminacion(e):
+            print("Pulsar boton eliminacion")
             criterio = eliminar_input.value.strip().lower()
             if not criterio:
+                page.open(dlg_modal_CamposVaciosElimina)
                 return
 
             original_len = len(productos)
@@ -376,11 +482,8 @@ def admin_interface(page: ft.Page):
                 eliminar_input.value = ""
                 formulario_eliminar_container.visible = False
                 actualizar_tabla()
-                page.snack_bar = ft.SnackBar(ft.Text("Producto eliminado exitosamente"), bgcolor=ft.colors.GREEN)
-                page.snack_bar.open = True
             else:
-                page.snack_bar = ft.SnackBar(ft.Text("Producto no encontrado"), bgcolor=ft.colors.RED)
-                page.snack_bar.open = True
+                page.open(dlg_modal_productoNoEncontrado)
 
             page.update()
 
@@ -484,7 +587,79 @@ def admin_interface(page: ft.Page):
     
     # Agregar el contenedor flotante como overlay
     page.overlay.append(total_floating)
-    
+
+    # Definimos el modal en caso de repetir el nombre de un producto
+    dlg_modal_validaNombre = ft.AlertDialog(
+        modal=True,
+        title=ft.Text(value="No se puede crear el producto",color="red"),
+        content=ft.Text("Ya existe un producto con este nombre."),
+        actions=[
+            ft.TextButton("Aceptar", on_click=lambda e: page.close(dlg_modal_validaNombre)),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+    )
+
+    # Modal nuevo producto exitoso
+    def modal_nuevo_producto(nombre):
+        dlg_modal_nuevoProducto = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(value="Producto creado correctamente",color="green"),
+            content=ft.Text(f"Se creo correctamente el producto: {nombre}"),
+            actions=[
+                ft.TextButton("Aceptar", on_click=lambda e: page.close(dlg_modal_nuevoProducto)),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.open(dlg_modal_nuevoProducto)
+
+    #Definimos el modal para validar datos vacios
+    def modal_productos_vacios(campos):
+        dlg_modal_CamposVacios = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(value="No se puede crear el producto",color="red"),
+            content=ft.Text(f"Los siguientes campos estan vacios: {campos}"),
+            actions=[
+                ft.TextButton("Aceptar", on_click=lambda e: page.close(dlg_modal_CamposVacios)),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.open(dlg_modal_CamposVacios)
+
+    # Definimos el modal para validar el tipo de datos
+    def modal_tipo_dato(campos):
+        dlg_modal_TipoDato = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(value="No se puede crear el producto",color="red"),
+            content=ft.Text(f"Los siguientes campos tienen datos incorrectos: {campos}\nPosible error: Se agrego una cantidad o precio de 0 o se ingreso un tipo de dato incorrecto (solo entero o flotante)"),
+            actions=[
+                ft.TextButton("Aceptar", on_click=lambda e: page.close(dlg_modal_TipoDato)),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.open(dlg_modal_TipoDato)
+
+    # Definimos el modal en caso de no encontrar el producto a eliminar
+    dlg_modal_productoNoEncontrado = ft.AlertDialog(
+        modal=True,
+        title=ft.Text(value="No existe este producto",color="red"),
+        content=ft.Text("Haz ingresado un id o producto que no existe"),
+        actions=[
+            ft.TextButton("Aceptar", on_click=lambda e: page.close(dlg_modal_productoNoEncontrado)),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+    )
+
+    #Definimos el modal para validar datos vacios al eliminar
+    dlg_modal_CamposVaciosElimina = ft.AlertDialog(
+        modal=True,
+        title=ft.Text(value="No se ha eliminado el producto",color="red"),
+        content=ft.Text("Haz dejado el campo del Id o nombre del producto vacio"),
+        actions=[
+            ft.TextButton("Aceptar", on_click=lambda e: page.close(dlg_modal_CamposVaciosElimina)),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+    )
+
     page.add(layout)
     change_view(None)  # Inicializar con la vista de ventas
     actualizar_lista()

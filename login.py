@@ -8,7 +8,7 @@ def login_view(page: ft.Page):
     page.horizontal_alignment = ft.CrossAxisAlignment.CENTER
 
     user_field = ft.TextField(label="Usuario", bgcolor="white", color="black", border_radius=15, max_length=20)
-    pass_field = ft.TextField(label="Contraseña", password=True, can_reveal_password=True, bgcolor="white", color="black", border_radius=15, max_length=20,)
+    pass_field = ft.TextField(label="Contraseña", password=True, can_reveal_password=True, bgcolor="white", color="black", border_radius=15, max_length=20)
     message = ft.Text("", color=ft.Colors.RED)
 
     def iniciar_sesion(e):

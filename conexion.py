@@ -13,10 +13,10 @@ def altaProducto(nombre,costo,cantidad):
     except pymysql.MySQLError as e:
         print(f"Error al insertar producto: {e}")
 
-def eliminaProducto(id,nombre):
+def eliminaProducto(id):
     try:
-        query = "DELETE FROM producto WHERE idProducto = %s or nombreProducto = %s"
-        valores = (id,nombre)
+        query = "DELETE FROM producto WHERE idProducto = %s"
+        valores = (id)
 
         cur.execute(query, valores)
         conex.commit()

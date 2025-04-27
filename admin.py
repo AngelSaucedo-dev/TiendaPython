@@ -8,6 +8,7 @@ def admin_interface(page: ft.Page):
     page.clean()
     
     try:
+        global productos
         cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto")
         resultado = cur.fetchall()
 
@@ -15,7 +16,7 @@ def admin_interface(page: ft.Page):
 
         for row in resultado:
             producto = {
-                "id": str(row[0]).zfill(3),
+                "id": str(row[0]),
                 "nombre": row[1],
                 "precio": float(row[2]),
                 "cantidad": int(row[3])
@@ -131,10 +132,11 @@ def admin_interface(page: ft.Page):
         product_list.controls.clear()
         busqueda = search_field.value.strip().lower()
 
+        global productos
         if not busqueda:
             page.update()
             return  # No mostrar nada si está vacío
-
+        print(productos)
         for p in productos:
             if busqueda == p["id"].lower() or busqueda in p["nombre"].lower():
                 product_list.controls.append(ft.ListTile(
@@ -149,7 +151,8 @@ def admin_interface(page: ft.Page):
     
     def agregar_al_carrito(producto):
         if producto["nombre"] in carrito:
-            carrito[producto["nombre"]]["cantidad"] += 1
+            if carrito[producto["nombre"]]["cantidad"] < producto["cantidad"]:
+                carrito[producto["nombre"]]["cantidad"] += 1
         else:
             carrito[producto["nombre"]] = {"precio": producto["precio"], "cantidad": 1}
         actualizar_carrito()
@@ -290,6 +293,7 @@ def admin_interface(page: ft.Page):
         )
 
         def actualizar_tabla():
+            global productos
             inventario_table.rows.clear()
             try:
                 cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto")
@@ -299,7 +303,7 @@ def admin_interface(page: ft.Page):
 
                 for row in resultado:
                     producto = {
-                        "id": str(row[0]).zfill(3),
+                        "id": str(row[0]),
                         "nombre": row[1],
                         "precio": float(row[2]),
                         "cantidad": int(row[3])
@@ -373,6 +377,20 @@ def admin_interface(page: ft.Page):
             ],
             visible=False
         )
+
+        # Modal de confirmación para eliminar el producto
+        def modal_alertConfirmation(criterio):
+            dlg_modal_confirmacion_eliminacion = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Confirmación de eliminación"),
+                content=ft.Text("¿Estás seguro de que deseas eliminar este producto?"),
+                actions=[
+                    ft.TextButton("Sí", on_click=lambda e: elimina_Producto(e,criterio)),
+                    ft.TextButton("No", on_click=lambda e: page.close(dlg_modal_confirmacion_eliminacion))
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            page.open(dlg_modal_confirmacion_eliminacion)
 
         #Validacion de productos
         def valida_alta_productos(nombre, precio, cantidad):
@@ -472,20 +490,29 @@ def admin_interface(page: ft.Page):
                 page.open(dlg_modal_CamposVaciosElimina)
                 return
 
-            original_len = len(productos)
+            existe = any(str(p["id"]).lower() == criterio for p in productos)
+
+            if existe:
+                modal_alertConfirmation(criterio)
+            else:
+                eliminar_input.value = ""
+                page.open(dlg_modal_productoNoEncontrado)
+            page.update()
+
+        def elimina_Producto(e,criterio):
+            global productos
             productos[:] = [
                 p for p in productos
-                if p["id"].lower() != criterio and p["nombre"].lower() != criterio
+                if p["id"].lower() != criterio
             ]
-
-            if len(productos) < original_len:
-                eliminar_input.value = ""
-                formulario_eliminar_container.visible = False
-                actualizar_tabla()
-            else:
-                page.open(dlg_modal_productoNoEncontrado)
-
-            page.update()
+            id = int(criterio)
+            print("Eliminado exitosamente", criterio)
+            modal_elimina_producto(criterio)
+            eliminaProducto(id)
+            print(productos)
+            eliminar_input.value = ""
+            formulario_eliminar_container.visible = False
+            actualizar_tabla()
 
         eliminar_confirm_btn.on_click = confirmar_eliminacion
         importar_btn = ft.ElevatedButton("Importar", icon=ft.icons.UPLOAD)
@@ -659,6 +686,19 @@ def admin_interface(page: ft.Page):
         ],
         actions_alignment=ft.MainAxisAlignment.END,
     )
+
+    # Modal nuevo producto exitoso
+    def modal_elimina_producto(nombre):
+        dlg_modal_eliminaProducto = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(value="Producto eliminado correctamente",color="green"),
+            content=ft.Text(f"Se elimino correctamente el producto: {nombre}"),
+            actions=[
+                ft.TextButton("Aceptar", on_click=lambda e: page.close(dlg_modal_eliminaProducto)),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.open(dlg_modal_eliminaProducto)
 
     page.add(layout)
     change_view(None)  # Inicializar con la vista de ventas

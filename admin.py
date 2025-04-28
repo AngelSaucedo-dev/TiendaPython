@@ -53,6 +53,28 @@ def admin_interface(page: ft.Page):
         except pymysql.MySQLError as e:
             print(f"Error al consultar producto: {e}")
 
+    # Valida enteros
+    def validarEnteros(enteros):
+        try:
+            numero = int(enteros)
+            if numero > 0 and numero < 9999:
+                return True
+            else:
+                return False
+        except:
+            return False
+
+    # Valida flotantes
+    def validaFloat(flotante):
+        try:
+            numero = float(flotante)
+            if numero > 0 and numero < 9999:
+                return True
+            else:
+                return False
+        except:
+            return False
+
 
     # Barra de navegación (siempre habilitada)
     navigation = ft.NavigationRail(
@@ -242,12 +264,27 @@ def admin_interface(page: ft.Page):
         page.update()
     
     def finalizar_venta():
+        if not validaFloat(cantidad_recibida.value):
+            page.open(dlg_modal_TipoDatoCompra)
+            cantidad_recibida.value = ""
+            return
+
+        print(total_text.value)
+        total = sum(info["precio"] * info["cantidad"] for info in carrito.values())
+        print(total)
+        if total > float(cantidad_recibida.value):
+            print("No se ajusta la compra")
+            page.open(dlg_modal_ErrorcompraProducto)
+            return
+        cambio = float(cantidad_recibida.value) - total
+        
         page.dialog = pago_dialog
         pago_dialog.open = True
         #Aqui mandamos la funcion para agregar a ventas
         procesar_Venta(carrito)
         
         actualizar_lista()
+        modal_compra_productp(cambio)
         carrito.clear()
         pago_section.visible = False
         actualizar_carrito()
@@ -494,28 +531,6 @@ def admin_interface(page: ft.Page):
             
             formulario_container.visible = False
             actualizar_tabla()
-        
-        # Valida enteros
-        def validarEnteros(enteros):
-            try:
-                numero = int(enteros)
-                if numero > 0 and numero < 9999:
-                    return True
-                else:
-                    return False
-            except:
-                return False
-
-        # Valida flotantes
-        def validaFloat(flotante):
-            try:
-                numero = float(flotante)
-                if numero > 0 and numero < 9999:
-                    return True
-                else:
-                    return False
-            except:
-                return False
             
         # Mostrar formulario al presionar eliminar
         def mostrar_formulario_eliminar(e):
@@ -741,6 +756,42 @@ def admin_interface(page: ft.Page):
             actions_alignment=ft.MainAxisAlignment.END,
         )
         page.open(dlg_modal_eliminaProducto)
+
+    # Definimos el modal en caso de que no se ajuste la compra
+    dlg_modal_ErrorcompraProducto = ft.AlertDialog(
+        modal=True,
+        title=ft.Text(value="No se ajusta el producto",color="red"),
+        content=ft.Text("No se tiene el saldo suficiente para comprar estos productos"),
+        actions=[
+            ft.TextButton("Aceptar", on_click=lambda e: page.close(dlg_modal_ErrorcompraProducto)),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+    )
+
+    # Definimos el modal en caso de que no se ajuste la compra
+    def modal_compra_productp(sobra):
+        dlg_modal_compraProducto= ft.AlertDialog(
+            modal=True,
+            title=ft.Text(value="Producto comprado correctamente",color="green"),
+            content=ft.Text(f"Se compro dicho producto correctamente, el cambio es de: {sobra}"),
+            actions=[
+                ft.TextButton("Aceptar", on_click=lambda e: page.close(dlg_modal_compraProducto)),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.open(dlg_modal_compraProducto)
+
+    # Definimos modal para mostrar tipo de dato incorrecto
+    dlg_modal_TipoDatoCompra = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(value="No se puede realizar la compra",color="red"),
+            content=ft.Text("Se ha ingresado un dato incorrecto para la compra"),
+            actions=[
+                ft.TextButton("Aceptar", on_click=lambda e: page.close(dlg_modal_TipoDatoCompra)),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        
 
     page.add(layout)
     change_view(None)  # Inicializar con la vista de ventas

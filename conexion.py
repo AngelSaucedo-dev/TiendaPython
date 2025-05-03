@@ -53,3 +53,13 @@ def altaCompraCarritoBD(id,compra,fecha):
         conex.commit()
     except pymysql.MySQLError as e:
         print(f"Error al comprar producto en BD:  {e}")
+
+def modificaProductoBD(id,nombre,costo,cantidad):
+    try:
+        queryModifica = "UPDATE producto SET nombreProducto= %s ,costoProducto = %s,cantidadProducto = %s WHERE idProducto = %s"
+        valoresModifica = (nombre,costo,cantidad,id)
+        cur.execute(queryModifica,valoresModifica)
+        conex.commit()
+        
+    except pymysql.MySQLError as e:
+        print(f"Error al modificar producto en BD: {e}")

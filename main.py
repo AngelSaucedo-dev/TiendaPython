@@ -1,4 +1,6 @@
 import flet as ft
+from datetime import datetime
+from conexion import *
 
 def main_interface(page: ft.Page):
     page.title = "Punto de Venta - Cajero"
@@ -6,12 +8,50 @@ def main_interface(page: ft.Page):
     page.theme_mode = ft.ThemeMode.LIGHT
     page.clean()
     
-    productos = [
-        {"id": "001", "nombre": "Arroz", "precio": 20.0, "cantidad": 10},
-        {"id": "002", "nombre": "Frijoles", "precio": 25.0, "cantidad": 15},
-        {"id": "003", "nombre": "Aceite", "precio": 50.0, "cantidad": 8},
-    ]
+    try:
+        global productos
+        cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto WHERE cantidadProducto > 0")
+        resultado = cur.fetchall()
+
+        productos = []
+
+        for row in resultado:
+            producto = {
+                "id": str(row[0]),
+                "nombre": row[1],
+                "precio": float(row[2]),
+                "cantidad": int(row[3])
+            }
+            productos.append(producto)
+
+        print(productos) 
+
+    except pymysql.MySQLError as e:
+        print(f"Error al consultar producto: {e}")
+
     carrito = {}
+
+    def actuProd(): 
+        try:
+            global productos
+            cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto WHERE cantidadProducto > 0")
+            resultado = cur.fetchall()
+
+            productos = []
+
+            for row in resultado:
+                producto = {
+                    "id": str(row[0]),
+                    "nombre": row[1],
+                    "precio": float(row[2]),
+                    "cantidad": int(row[3])
+                }
+                productos.append(producto)
+
+            print(productos) 
+
+        except pymysql.MySQLError as e:
+            print(f"Error al consultar producto: {e}")
 
     # Barra de navegación (siempre habilitada)
     navigation = ft.NavigationRail(
@@ -274,16 +314,36 @@ def main_interface(page: ft.Page):
         )
 
         def actualizar_tabla():
+            global productos
             inventario_table.rows.clear()
+            try:
+                cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto > 0")
+                resultado = cur.fetchall()
+
+                productos = []
+
+                for row in resultado:
+                    producto = {
+                        "id": str(row[0]),
+                        "nombre": row[1],
+                        "precio": float(row[2]),
+                        "cantidad": int(row[3])
+                    }
+                    productos.append(producto)
+
+                print(productos) 
+
+            except pymysql.MySQLError as e:
+                print(f"Error al consultar producto: {e}")
             for p in productos:
-                inventario_table.rows.append(ft.DataRow(
-                    cells=[
+                inventario_table.rows.append(
+                    ft.DataRow(cells=[
                         ft.DataCell(ft.Text(p["id"])),
                         ft.DataCell(ft.Text(p["nombre"])),
                         ft.DataCell(ft.Text(f"${p['precio']:.2f}")),
-                        ft.DataCell(ft.Text(str(p["cantidad"])))
-                    ]
-                ))
+                        ft.DataCell(ft.Text(str(p["cantidad"]))),
+                    ])
+                )
             page.update()
 
         actualizar_tabla()

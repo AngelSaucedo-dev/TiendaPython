@@ -10,7 +10,7 @@ def admin_interface(page: ft.Page):
     
     try:
         global productos
-        cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto WHERE cantidadProducto > 0")
+        cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto")
         resultado = cur.fetchall()
 
         productos = []
@@ -34,7 +34,7 @@ def admin_interface(page: ft.Page):
     def actuProd(): 
         try:
             global productos
-            cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto WHERE cantidadProducto > 0")
+            cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto")
             resultado = cur.fetchall()
 
             productos = []
@@ -347,7 +347,7 @@ def admin_interface(page: ft.Page):
 
     def inventario_view():
         # Botones principales
-        importar_btn = ft.ElevatedButton("Importar Inventario", icon=ft.icons.DOWNLOAD)
+        modificar_btn = ft.ElevatedButton("Modificar Inventario", icon=ft.icons.EDIT)
         exportar_btn = ft.ElevatedButton("Exportar Inventario", icon=ft.icons.UPLOAD)
         agregar_btn = ft.ElevatedButton("Agregar Producto", icon=ft.icons.ADD)
         eliminar_btn = ft.ElevatedButton("Eliminar Producto", icon=ft.icons.DELETE)
@@ -375,7 +375,7 @@ def admin_interface(page: ft.Page):
             global productos
             inventario_table.rows.clear()
             try:
-                cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto WHERE cantidadProducto > 0")
+                cur.execute("SELECT idProducto, nombreProducto, costoProducto, cantidadProducto FROM producto")
                 resultado = cur.fetchall()
 
                 productos = []
@@ -428,6 +428,11 @@ def admin_interface(page: ft.Page):
         # Mostrar formulario al presionar agregar
         def mostrar_formulario(e):
             formulario_container.visible = not formulario_container.visible
+            if formulario_container.visible == formulario_modificar_container.visible:
+                formulario_modificar_container.visible = False
+            if formulario_container.visible == formulario_eliminar_container.visible:
+                formulario_eliminar_container.visible = False
+
             page.update()
 
         agregar_btn.on_click = mostrar_formulario
@@ -457,6 +462,34 @@ def admin_interface(page: ft.Page):
             visible=False
         )
 
+        # Controles para modificar un producto
+        modificar_input = ft.TextField(label="ID o Nombre del producto a modificar", width=300, max_length=20)
+        modificar_confirm_btn = ft.ElevatedButton("Buscar", icon=ft.icons.SEARCH)
+
+        id_input_modifica = ft.TextField(label="ID del producto", width=200, disabled=True, visible = False)
+        nombre_input_modifica = ft.TextField(label="Nombre del producto", width=200, max_length=20, visible = False)
+        precio_input_modifica = ft.TextField(label="Precio", width=150, keyboard_type=ft.KeyboardType.NUMBER, max_length=6, visible = False)
+        existencia_input_modifica = ft.TextField(label="En existencia", width=150, keyboard_type=ft.KeyboardType.NUMBER, max_length=6, visible = False)
+
+        confirm_btn_modifica = ft.ElevatedButton("Confirmar", icon=ft.icons.EDIT, visible = False)
+
+        formulario_modificar_container = ft.Column(
+            controls=[
+                ft.Row([
+                    modificar_input,
+                    modificar_confirm_btn,
+                ], spacing=10),
+                ft.Row([
+                    id_input_modifica,
+                    nombre_input_modifica,
+                    precio_input_modifica,
+                    existencia_input_modifica,
+                    confirm_btn_modifica,
+                ], spacing=10)
+            ],
+            visible=False
+        )
+
         # Modal de confirmación para eliminar el producto
         def modal_alertConfirmation(criterio):
             dlg_modal_confirmacion_eliminacion = ft.AlertDialog(
@@ -470,6 +503,20 @@ def admin_interface(page: ft.Page):
                 actions_alignment=ft.MainAxisAlignment.END,
             )
             page.open(dlg_modal_confirmacion_eliminacion)
+
+        # Modal de confirmación para eliminar el producto
+        def modal_alertConfirmationModificar(criterio):
+            dlg_modal_confirmacion_Modificacion = ft.AlertDialog(
+                modal=True,
+                title=ft.Text("Confirmación de modificacion"),
+                content=ft.Text("¿Estás seguro de que deseas modificar este producto?"),
+                actions=[
+                    ft.TextButton("Sí", on_click=lambda e: modifica_Producto(e,criterio)),
+                    ft.TextButton("No", on_click=lambda e: page.close(dlg_modal_confirmacion_Modificacion))
+                ],
+                actions_alignment=ft.MainAxisAlignment.END,
+            )
+            page.open(dlg_modal_confirmacion_Modificacion)
 
         #Validacion de productos
         def valida_alta_productos(nombre, precio, cantidad):
@@ -531,10 +578,18 @@ def admin_interface(page: ft.Page):
             
             formulario_container.visible = False
             actualizar_tabla()
-            
+
+        #Fin para crear un nuevo producto
+
+        # Inicio de la midificacion del producto
+
         # Mostrar formulario al presionar eliminar
         def mostrar_formulario_eliminar(e):
             formulario_eliminar_container.visible = not formulario_eliminar_container.visible
+            if formulario_eliminar_container.visible == formulario_modificar_container.visible:
+                formulario_modificar_container.visible = False
+            if formulario_container.visible == formulario_eliminar_container.visible:
+                formulario_container.visible = False
             page.update()
 
         eliminar_btn.on_click = mostrar_formulario_eliminar
@@ -572,7 +627,133 @@ def admin_interface(page: ft.Page):
             actualizar_tabla()
 
         eliminar_confirm_btn.on_click = confirmar_eliminacion
-        importar_btn = ft.ElevatedButton("Importar", icon=ft.icons.UPLOAD)
+        modificar_btn = ft.ElevatedButton("Modificar", icon=ft.icons.EDIT)
+
+        # Inicio de modificacion
+        def mostrar_formulario_modificar(e):
+            formulario_modificar_container.visible = not formulario_modificar_container.visible
+            if formulario_container.visible == formulario_modificar_container.visible:
+                formulario_container.visible = False
+            if formulario_eliminar_container.visible == formulario_modificar_container.visible:
+                formulario_eliminar_container.visible = False
+            page.update()
+
+        modificar_btn.on_click = mostrar_formulario_modificar
+
+        def confirmar_modificacion(e):
+            print("Se pulsa boton")
+            criterio = modificar_input.value.strip().lower()
+            if not criterio:
+                page.open(dlg_modal_CamposVaciosModifica)
+                return
+
+            existe = any(str(p["id"]).lower() == criterio for p in productos)
+            
+            if existe:
+                #modal_alertConfirmationModificar(criterio)
+                producto_id = modificar_input.value
+                print("Se muestran los inputs llenos con la info a modificar")
+                producto = next((p for p in productos if p['id'] == producto_id), None)
+                print(producto)
+                id_input_modifica.value = producto["id"]
+                nombre_input_modifica.value = producto["nombre"]
+                precio_input_modifica.value = str(producto["precio"])
+                existencia_input_modifica.value = str(producto["cantidad"])
+
+                id_input_modifica.visible = True
+                nombre_input_modifica.visible = True
+                precio_input_modifica.visible = True
+                existencia_input_modifica.visible = True
+                confirm_btn_modifica.visible = True
+                page.update()
+                print(criterio)
+            else:
+                modificar_input.value = ""
+                id_input_modifica.visible = False
+                nombre_input_modifica.visible = False
+                precio_input_modifica.visible = False
+                existencia_input_modifica.visible = False
+                confirm_btn_modifica.visible = False
+                page.open(dlg_modal_productoNoEncontrado)
+            page.update()
+
+        print(id_input_modifica.value)
+
+        def modifica_Producto(e,prodId):
+            global productos
+            nombre = nombre_input_modifica.value
+            precio = precio_input_modifica.value 
+            cantidad = existencia_input_modifica.value 
+            
+            existe = False
+            valores = {"Nombre":nombre,"Precio":precio,"Cantidad":cantidad}
+            vacio = []
+
+            for valor in valores:
+                print(valores[valor])
+                if valores[valor] == "":
+                    vacio.append(valor)
+                    print(f"El campo {valor} esta vacio")
+            print(vacio)
+            if vacio:
+                campos = ", ".join(vacio)
+                print(campos)
+                modal_productos_vacios(campos)
+                return
+            
+            vacio = []  # Reiniciamos la lista vacíos
+
+            if not validaFloat(precio):
+                vacio.append("Precio")
+            if not validarEnteros(cantidad):
+                vacio.append("Cantidad")
+
+            if vacio:
+                campos = ", ".join(vacio)
+                print(campos)
+                modal_tipo_dato(campos)
+                return
+
+            for p in productos:
+                print(f"Comparando {p['nombre'].lower()} con {nombre.lower()}")
+                if p["nombre"].lower() == nombre.lower() and prodId!=p["id"]:
+                    existe = True
+                    break
+
+            if existe:
+                page.open(dlg_modal_validaNombre)
+                return
+            
+            for producto in productos:
+                if producto['id'] == prodId:
+                    # Modificar los datos desde los TextFields
+                    producto['nombre'] = nombre_input_modifica.value
+                    producto['precio'] = float(precio_input_modifica.value)
+                    producto['cantidad'] = int(existencia_input_modifica.value)
+
+                    print("Producto modificado:", producto)
+                    break
+            modal_modifica_producto(nombre)
+            modificaProductoBD(prodId,nombre,precio,cantidad)
+            formulario_modificar_container.visible = False
+            modificar_input.value = ""
+            id_input_modifica.value = producto["id"]
+            nombre_input_modifica.value = producto["nombre"]
+            precio_input_modifica.value = str(producto["precio"])
+            existencia_input_modifica.value = str(producto["cantidad"])
+            modificar_input.value = ""
+            id_input_modifica.visible = False
+            nombre_input_modifica.visible = False
+            precio_input_modifica.visible = False
+            existencia_input_modifica.visible = False
+            confirm_btn_modifica.visible = False
+            actualizar_tabla() 
+            page.update()        
+        def confirmaMod(e):
+            modal_alertConfirmationModificar(id_input_modifica.value)
+
+        modificar_confirm_btn.on_click = confirmar_modificacion
+        confirm_btn_modifica.on_click = confirmaMod
 
         return ft.Column(
             controls=[
@@ -581,13 +762,14 @@ def admin_interface(page: ft.Page):
                         ft.Text("Gestión de Inventario", size=24, weight=ft.FontWeight.BOLD, expand=True),
                         agregar_btn,
                         eliminar_btn,
-                        importar_btn,
+                        modificar_btn,
                         exportar_btn
                     ],
                     alignment=ft.MainAxisAlignment.SPACE_BETWEEN
                 ),
                 formulario_container,
                 formulario_eliminar_container,
+                formulario_modificar_container,
                 ft.Container(
                     content=ft.ListView(
                         controls=[inventario_table],
@@ -604,7 +786,7 @@ def admin_interface(page: ft.Page):
             spacing=20
         )
 
-
+    #Fin de eliminar
     def reportes_view():
         rango_selector = ft.Dropdown(
             label="Selecciona el rango de tiempo",
@@ -683,6 +865,18 @@ def admin_interface(page: ft.Page):
         actions_alignment=ft.MainAxisAlignment.END,
     )
 
+    def modal_modifica_producto(nombre):
+        dlg_modal_modificaProducto = ft.AlertDialog(
+            modal=True,
+            title=ft.Text(value="Producto modificado correctamente",color="green"),
+            content=ft.Text(f"Se creo modifico el producto: {nombre}"),
+            actions=[
+                ft.TextButton("Aceptar", on_click=lambda e: page.close(dlg_modal_modificaProducto)),
+            ],
+            actions_alignment=ft.MainAxisAlignment.END,
+        )
+        page.open(dlg_modal_modificaProducto)
+
     # Modal nuevo producto exitoso
     def modal_nuevo_producto(nombre):
         dlg_modal_nuevoProducto = ft.AlertDialog(
@@ -732,7 +926,7 @@ def admin_interface(page: ft.Page):
         ],
         actions_alignment=ft.MainAxisAlignment.END,
     )
-
+    
     #Definimos el modal para validar datos vacios al eliminar
     dlg_modal_CamposVaciosElimina = ft.AlertDialog(
         modal=True,
@@ -740,6 +934,17 @@ def admin_interface(page: ft.Page):
         content=ft.Text("Haz dejado el campo del Id o nombre del producto vacio"),
         actions=[
             ft.TextButton("Aceptar", on_click=lambda e: page.close(dlg_modal_CamposVaciosElimina)),
+        ],
+        actions_alignment=ft.MainAxisAlignment.END,
+    )
+
+    # Modal para validar datos vacios al eliminar
+    dlg_modal_CamposVaciosModifica = ft.AlertDialog(
+        modal=True,
+        title=ft.Text(value="No se ha modificado el producto",color="red"),
+        content=ft.Text("Haz dejado el campo del Id del producto vacio"),
+        actions=[
+            ft.TextButton("Aceptar", on_click=lambda e: page.close(dlg_modal_CamposVaciosModifica)),
         ],
         actions_alignment=ft.MainAxisAlignment.END,
     )

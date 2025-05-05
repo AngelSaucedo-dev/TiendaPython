@@ -1,5 +1,5 @@
 import flet as ft
-from main import main_interface
+from cajero import main_interface
 from admin import admin_interface
 
 def login_view(page: ft.Page):
@@ -61,4 +61,4 @@ def login_view(page: ft.Page):
     page.add(container)
 
 # Este archivo sí debe tener la llamada a ft.app
-ft.app(target=login_view)
+#ft.app(target=login_view)

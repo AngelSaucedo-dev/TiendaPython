@@ -1,6 +1,7 @@
 import flet as ft
 from datetime import datetime
 from conexion import *
+from exportarPDF import *
 
 def admin_interface(page: ft.Page):
     page.title = "Punto de Venta - Cajero"
@@ -53,6 +54,15 @@ def admin_interface(page: ft.Page):
         except pymysql.MySQLError as e:
             print(f"Error al consultar producto: {e}")
 
+    def exportProductsDB():
+        try:
+            cur.execute("SELECT  p.*, COALESCE(SUM(v.cantidadCompra), 0) AS total_vendido FROM producto p LEFT JOIN  compras v ON v.id_Producto = p.idProducto GROUP BY  p.idProducto;")
+            resultado = cur.fetchall()
+            exportarProductos("AdminReporte",resultado)
+
+        except pymysql.MySQLError as e:
+            print(f"Error al generar consulta de exportar: {e} ")
+
     # Valida enteros
     def validarEnteros(enteros):
         try:
@@ -82,6 +92,7 @@ def admin_interface(page: ft.Page):
             ft.NavigationRailDestination(icon=ft.Icons.SHOPPING_CART, label="Ventas"),
             ft.NavigationRailDestination(icon=ft.Icons.INVENTORY, label="Inventario"),
             ft.NavigationRailDestination(icon=ft.Icons.ANALYTICS, label="Reportes"),
+            ft.NavigationRailDestination(icon=ft.Icons.LOGOUT, label="Salir"),
         ],
         selected_index=0,
     )  
@@ -406,7 +417,7 @@ def admin_interface(page: ft.Page):
 
         # Controles para agregar producto
         #id_input = ft.TextField(label="ID del producto", width=200)
-        nombre_input = ft.TextField(label="Nombre del producto", width=200, max_length=20)
+        nombre_input = ft.TextField(label="Nombre del producto", width=200, max_length=16)
         precio_input = ft.TextField(label="Precio", width=150, keyboard_type=ft.KeyboardType.NUMBER, max_length=6)
         existencia_input = ft.TextField(label="En existencia", width=150, keyboard_type=ft.KeyboardType.NUMBER, max_length=6)
 
@@ -467,7 +478,7 @@ def admin_interface(page: ft.Page):
         modificar_confirm_btn = ft.ElevatedButton("Buscar", icon=ft.icons.SEARCH)
 
         id_input_modifica = ft.TextField(label="ID del producto", width=200, disabled=True, visible = False)
-        nombre_input_modifica = ft.TextField(label="Nombre del producto", width=200, max_length=20, visible = False)
+        nombre_input_modifica = ft.TextField(label="Nombre del producto", width=200, max_length=16, visible = False)
         precio_input_modifica = ft.TextField(label="Precio", width=150, keyboard_type=ft.KeyboardType.NUMBER, max_length=6, visible = False)
         existencia_input_modifica = ft.TextField(label="En existencia", width=150, keyboard_type=ft.KeyboardType.NUMBER, max_length=6, visible = False)
 
@@ -748,12 +759,21 @@ def admin_interface(page: ft.Page):
             existencia_input_modifica.visible = False
             confirm_btn_modifica.visible = False
             actualizar_tabla() 
-            page.update()        
+            page.update()
+                    
         def confirmaMod(e):
             modal_alertConfirmationModificar(id_input_modifica.value)
 
         modificar_confirm_btn.on_click = confirmar_modificacion
         confirm_btn_modifica.on_click = confirmaMod
+
+        
+        def exportaProductosAction(e):
+            exportProductsDB()
+            print("Exporta productos")
+            
+
+        exportar_btn.on_click = exportaProductosAction
 
         return ft.Column(
             controls=[
@@ -834,6 +854,11 @@ def admin_interface(page: ft.Page):
 
     content = ft.Container(expand=True)
 
+    def salir(e):
+        from login import login_view
+        page.clean()
+        login_view(page)
+
     def change_view(e):
         index = navigation.selected_index if e is None else e.control.selected_index
         if index == 0:
@@ -842,6 +867,9 @@ def admin_interface(page: ft.Page):
             content.content = inventario_view()
         elif index == 2:
             content.content = reportes_view()
+        elif index == 3:
+            print("Opcion salir")
+            salir(e)
         
         # Ocultar total flotante cuando no está en ventas
         if index != 0:
